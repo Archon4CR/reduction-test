@@ -1,0 +1,88 @@
+% archon:covers ReductionTest/NAE3SAT.lean
+
+\section{3SAT reduces to NAE-3SAT}
+\label{sec:nae3sat}
+
+This chapter mirrors \texttt{ReductionTest/NAE3SAT.lean} one-to-one.
+The problem is from Sipser-style reductions, ID 02-004.
+
+\subsection*{CR library API --- REUSE}
+
+The ComplexityReduction library already ships a fully proven, axiom-clean
+3SAT $\to$ NAE-3SAT hardness reduction. The prover should add the imports
+\texttt{ComplexityReduction.CSP.Examples.NAE3SAT} and
+\texttt{ComplexityReduction.CSP.Hardness.NAE3SAT} (the current stub imports
+only \texttt{SAT.ThreeSAT} + \texttt{Certificates.ReductionCert}) and define
+abbrev/re-exports pointing at the existing declarations. No new proofs are
+required.
+
+\textbf{Existing declarations in CR:}
+\begin{itemize}
+  \item \texttt{CSP.Examples.notAllEqual3DecisionProblem : EncodedDecisionProblem}
+    (in \texttt{CSP/Examples/NAE3SAT.lean}) --- the NAE-3SAT target problem.
+  \item \texttt{CSP.Hardness.NAE3SAT.threeSATToNAE3CostedReduction :
+    CostedReduction SAT.threeSATDecisionProblem
+    CSP.Examples.notAllEqual3DecisionProblem}
+    (in \texttt{CSP/Hardness/NAE3SAT/Part2.lean}) --- the costed reduction.
+  \item \texttt{CSP.Hardness.NAE3SAT.threeCNFToNAE3Formula\_satisfiable\_iff}
+    ($\phi$ : \texttt{ThreeCNF}) :
+    \texttt{Formula.Satisfiable (threeCNFToNAE3Formula $\phi$)
+    $\leftrightarrow$ $\phi$.Satisfiable}
+    (in \texttt{CSP/Hardness/NAE3SAT/Part2.lean}) --- the correctness iff.
+  \item \texttt{CSP.Hardness.NAE3SAT.nae3NPComplete} --- NPC theorem, also
+    available if needed.
+\end{itemize}
+
+\begin{definition}[NAE-3SAT decision problem]
+  \label{def:nae3sat}
+ \lean{ReductionTest.NAE3SAT.nae3SATDecisionProblem}
+ \mathlibok
+ NAE-3SAT (Not-All-Equal 3SAT) is the decision problem: given a 3-CNF
+  formula $\phi$, is there a truth assignment such that in every clause,
+  at least one literal is true and at least one literal is false?
+  In Lean, define as an \texttt{abbrev} for
+  \texttt{CSP.Examples.notAllEqual3DecisionProblem}.
+\end{definition}
+
+\begin{theorem}[3SAT reduces to NAE-3SAT]
+  \label{thm:three_sat_to_nae3sat}
+ \lean{ReductionTest.NAE3SAT.threeSATToNAE3SAT}
+ \mathlibok
+ \uses{def:nae3sat}
+ There exists a polynomial-time costed reduction from 3SAT to NAE-3SAT.
+  In Lean, define as an \texttt{abbrev} for
+  \texttt{CSP.Hardness.NAE3SAT.threeSATToNAE3CostedReduction}.
+\end{theorem}
+
+\begin{proof}
+  \uses{def:nae3sat}
+  The reduction is already fully proven in the ComplexityReduction library.
+  The map \texttt{threeCNFToNAE3Formula} introduces global false/true anchor
+  variables (\texttt{falseVar}, \texttt{trueVar}) plus an anchor NAE
+  constraint, per-source-variable complement-pair constraints via
+  \texttt{negVar}, and per-clause gadgets using auxiliary variables
+  (\texttt{auxVar}, \texttt{auxNegVar}). The correctness iff
+  \texttt{threeCNFToNAE3Formula\_satisfiable\_iff} is proven in
+  \texttt{CSP/Hardness/NAE3SAT/Part2.lean}. The costed reduction
+  \texttt{threeSATToNAE3CostedReduction} is built via
+  \texttt{CostedReduction.ofCostedMap} with a quadratic polynomial size
+  bound (degree 2). The prover's task is to re-export these declarations,
+  not to re-prove them.
+\end{proof}
+
+\begin{theorem}[Correctness of the 3SAT to NAE-3SAT reduction]
+  \label{thm:three_sat_to_nae3sat_correct}
+  \lean{ReductionTest.NAE3SAT.threeSATToNAE3SAT_correct}
+  \uses{def:nae3sat}
+ A 3SAT formula $\phi$ is satisfiable if and only if the NAE-3SAT
+  formula $f(\phi)$ produced by the reduction is NAE-satisfiable.
+\end{theorem}
+
+\begin{proof}
+  \uses{def:nae3sat}
+  This is exactly
+  \texttt{CSP.Hardness.NAE3SAT.threeCNFToNAE3Formula\_satisfiable\_iff},
+  which is already proven. The prover should state the iff in terms of
+  the re-exported \texttt{nae3SATDecisionProblem} and close it by applying
+  the existing lemma.
+\end{proof}

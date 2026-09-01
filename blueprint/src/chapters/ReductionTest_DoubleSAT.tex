@@ -1,0 +1,156 @@
+% archon:covers ReductionTest/DoubleSAT.lean
+
+\section{DOUBLE-SAT is NP-complete (reduction from SAT)}
+\label{sec:double_sat}
+
+This chapter mirrors \texttt{ReductionTest/DoubleSAT.lean} one-to-one.
+The problem is from UCC CS4407 (2020), Problem Set: NP-Complete Reductions.
+
+\subsection*{CR library API}
+
+The source problem is \texttt{satisfiabilityStructuredDecisionProblem}
+(in \texttt{ComplexityReduction.Karp21.Satisfiability.Encoding}), whose
+carrier is \texttt{SAT.CNF} (i.e.\ \texttt{List (List Literal)}) and whose
+\texttt{isYes} predicate is \texttt{SAT.CNF.Satisfiable}. The prover should
+add the import \texttt{ComplexityReduction.Karp21.Satisfiability.Encoding}
+(the current stub only imports \texttt{SAT.ThreeSAT}).
+
+The target (DOUBLE-SAT) does not exist in CR and must be built as a custom
+\texttt{EncodedDecisionProblem} on \texttt{SAT.CNF}.
+
+\textbf{Caveat:} \texttt{Assignment := Nat $\to$ Bool} (total functions).
+Any satisfiable CNF has infinitely many satisfying assignments (unconstrained
+variables can vary freely), so ``at least two'' is trivially implied by ``at
+least one.'' The reduction is still correct: the forward direction uses
+\texttt{Function.update} to set $y$ to \texttt{true} and \texttt{false},
+yielding two \emph{distinct} assignments; the backward direction needs only
+that $\phi'$ satisfiable implies $\phi$ satisfiable.
+
+\begin{definition}[DOUBLE-SAT decision problem]
+  \label{def:double_sat}
+  \lean{ReductionTest.DoubleSAT.doubleSATDecisionProblem}
+  DOUBLE-SAT is the decision problem on \texttt{SAT.CNF} whose
+  \texttt{isYes} predicate holds when $\phi$ has at least two distinct
+  satisfying assignments:
+  \[
+    \textit{isYes}(\phi) \;=\; \exists\, a_1\, a_2,\; a_1 \neq a_2 \;\wedge\;
+      \textit{CNF.Satisfies}\;\phi\;a_1 \;\wedge\;
+      \textit{CNF.Satisfies}\;\phi\;a_2.
+  \]
+  Construct as \texttt{EncodedDecisionProblem} with
+  \texttt{Instance := cnfStructuredEncodedType} (the encoded type for
+  \texttt{SAT.CNF}, available via \texttt{satisfiabilityStructuredDecisionProblem.Instance}).
+\end{definition}
+
+\begin{definition}[SAT-to-DOUBLE-SAT map]
+  \label{def:sat_to_double_sat_map}
+  \lean{ReductionTest.DoubleSAT.satToDoubleSATMap}
+  \uses{def:double_sat}
+  The reduction map appends a tautological clause using a fresh variable
+  $y = \texttt{CNF.varBound}\;\phi$ (which is strictly greater than every
+  variable index appearing in $\phi$):
+  \[
+    f(\phi) \;=\; \phi \;\texttt{++}\;
+      [[\texttt{Literal.positive}\;y,\;\texttt{Literal.negative}\;y]].
+  \]
+  The fresh variable $y$ does not appear in $\phi$ by
+  \texttt{CNF.clause\_vars\_lt\_varBound} (every literal variable in $\phi$
+  is $< \texttt{varBound}\;\phi$).
+\end{definition}
+
+\begin{theorem}[SAT reduces to DOUBLE-SAT]
+  \label{thm:sat_to_double_sat}
+ \lean{ReductionTest.DoubleSAT.satToDoubleSAT}
+  \uses{def:double_sat, def:sat_to_double_sat_map, thm:sat_to_double_sat_correct}
+ There exists a polynomial-time costed reduction
+  \texttt{satToDoubleSAT : CostedReduction satisfiabilityStructuredDecisionProblem
+  doubleSATDecisionProblem}, constructed via
+  \texttt{CostedReduction.ofCostedMap} with the map
+  $f(\phi) = \phi \;\texttt{++}\; [[y, \neg y]]$ and a polynomial size bound.
+\end{theorem}
+
+\begin{proof}
+  \uses{def:double_sat, def:sat_to_double_sat_map}
+  We define the reduction $f(\phi) = \phi \wedge (y \vee \neg y)$ where
+  $y = \texttt{CNF.varBound}\;\phi$ is a fresh variable not appearing in $\phi$.
+
+  \textbf{Forward} ($\phi$ satisfiable $\Rightarrow$ $f(\phi)$ has $\geq 2$
+  satisfying assignments): Let $\sigma$ satisfy $\phi$. By
+  \texttt{CNF.satisfies\_append}, $\sigma$ satisfies $f(\phi)$ iff it
+  satisfies $\phi$ and the tautological clause $[y, \neg y]$. The clause is
+  always satisfied: \texttt{eval\_positive} gives
+  $\textit{eval}(\texttt{positive}\;y)\;\sigma = \sigma\;y$ and
+  \texttt{eval\_negative} gives
+  $\textit{eval}(\texttt{negative}\;y)\;\sigma = \neg\,\sigma\;y$, so one of
+  the two literals is always true (case-split on $\sigma\;y$). Moreover, by
+  \texttt{Clause.eval\_eq\_of\_eq\_on\_vars}, changing $\sigma$ at index $y$
+  does not affect whether $\phi$ is satisfied (all of $\phi$'s variables are
+  $< y$). Thus $\texttt{Function.update}\;\sigma\;y\;\texttt{true}$ and
+  $\texttt{Function.update}\;\sigma\;y\;\texttt{false}$ are two distinct
+  satisfying assignments of $f(\phi)$.
+
+  \textbf{Backward} ($f(\phi)$ has $\geq 2$ satisfying assignments $\Rightarrow$
+  $\phi$ satisfiable): If $f(\phi)$ has at least two satisfying assignments,
+  then in particular $f(\phi)$ is satisfiable. By
+  \texttt{CNF.satisfies\_append}, any satisfying assignment of $f(\phi)$
+  also satisfies $\phi$ (since $f(\phi) = \phi \;\texttt{++}\; \psi$ and
+  satisfaction of $\phi \;\texttt{++}\; \psi$ requires satisfaction of
+  $\phi$).
+
+ \textbf{Costed map}: By \texttt{list\_inputSize\_append} (in
+ \texttt{Bridges.CostedToTM.NatRange}),
+ $\textit{inputSize}(f(\phi)) = \textit{inputSize}(\phi) +
+  \textit{inputSize}([[y, \neg y]])$.
+  The appended singleton CNF has encoded size $2y + 9$: each literal $l$
+  has \texttt{inputSize} $= l.\textit{var} + 3$ (by
+  \texttt{literalStructured\_inputSize\_eq}, since the encoding is
+  \texttt{prod nat bool} with sizes $\textit{var}+1$, $1$ delimiter, $1$
+  bool). The clause $[y, \neg y]$ has size $(y{+}3)+1+(y{+}3)+1 = 2y{+}8$
+  (by \texttt{inputSize\_list\_cons}), and the singleton CNF $[[y, \neg y]]$
+  has size $(2y{+}8)+1 = 2y{+}9$.
+  By \texttt{cnfVarBound\_le\_cnfStructured\_inputSize}
+  (in \texttt{Karp21.Satisfiability.SplitWith.SizeAndFinalMaps}),
+  $y = \texttt{CNF.varBound}\;\phi \le \textit{inputSize}(\phi)$.
+  Therefore $\textit{inputSize}(f(\phi)) \le 3 \cdot \textit{inputSize}(\phi) + 9$,
+  which closes by \texttt{omega}.
+
+  \textbf{IMPORTANT:} The current Lean stub has
+  \texttt{LinearSizeBound.intro\_with 2 4} --- these constants are
+  \emph{wrong}. The inequality $s + 2y + 9 \le 2s + 4$ fails for $s = 0$
+  (e.g.\ $\phi = []$). The prover MUST change the constants to
+  \texttt{LinearSizeBound.intro\_with 3 9}. Build \texttt{CostedMap} via
+  \texttt{CostedMap.of\_encodedPolynomialSizeBound} with
+  \texttt{PolynomialSizeBound.of\_linear} and
+  \texttt{LinearSizeBound.intro\_with 3 9}, then apply
+  \texttt{CostedReduction.ofCostedMap}. Key lemmas (all in the CR library,
+  may need adding to the import list):
+  \texttt{list\_inputSize\_append} (NatRange.lean),
+  \texttt{literalStructured\_inputSize\_eq} (SplitWith/Core.lean),
+  \texttt{cnfVarBound\_le\_cnfStructured\_inputSize} (SizeAndFinalMaps.lean),
+  \texttt{inputSize\_list\_cons}, \texttt{inputSize\_list\_nil}
+  (EncodedType.lean).
+\end{proof}
+
+\begin{theorem}[Correctness of the SAT to DOUBLE-SAT reduction]
+  \label{thm:sat_to_double_sat_correct}
+ \lean{ReductionTest.DoubleSAT.satToDoubleSAT_correct}
+  \uses{def:double_sat, def:sat_to_double_sat_map}
+ For every CNF formula $\phi$, $\phi$ is satisfiable if and only if
+  $f(\phi) = \phi \;\texttt{++}\; [[y, \neg y]]$ has at least two
+  satisfying assignments.
+\end{theorem}
+
+\begin{proof}
+  \uses{def:sat_to_double_sat_map}
+ \textbf{Forward}: if $\phi$ has a satisfying assignment $\sigma$, then
+  $\texttt{Function.update}\;\sigma\;y\;\texttt{true}$ and
+  $\texttt{Function.update}\;\sigma\;y\;\texttt{false}$ are two distinct
+  satisfying assignments of $f(\phi)$ (by the argument in
+  \ref{thm:sat_to_double_sat}: \texttt{CNF.satisfies\_append} +
+  \texttt{Clause.eval\_eq\_of\_eq\_on\_vars} + the tautological clause is
+  always satisfied).
+
+  \textbf{Backward}: if $f(\phi)$ has at least two satisfying assignments,
+  then $f(\phi)$ is satisfiable, so by \texttt{CNF.satisfies\_append} any
+  satisfying assignment of $f(\phi)$ restricts to one of $\phi$.
+\end{proof}

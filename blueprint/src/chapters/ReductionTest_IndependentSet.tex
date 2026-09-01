@@ -1,0 +1,224 @@
+% archon:covers ReductionTest/IndependentSet.lean
+
+\section{CLIQUE reduces to INDEPENDENT SET}
+\label{sec:independent_set}
+
+This chapter mirrors \texttt{ReductionTest/IndependentSet.lean} one-to-one.
+The problem is from Karp 21 reductions, ID 06-017.
+
+\subsection*{CR library API}
+
+Source: \texttt{cliqueDecisionProblem} (in
+\texttt{ComplexityReduction.Combinatorics.Graph.Basic}), carrier
+\texttt{CliqueInput}, \texttt{isYes := Clique}. Target: built from scratch
+as \texttt{independentSetDecisionProblem}.
+
+Key reused CR declarations:
+\begin{itemize}
+  \item \texttt{complementGraph (g : GraphInput) : GraphInput}
+    (in \texttt{Karp21.VertexCover}) --- preserves \texttt{vertices},
+    replaces edges with complement, sets \texttt{directed := false}.
+  \item \texttt{hasUndirectedEdge\_complementGraph\_iff (g : GraphInput)
+    (u v : Nat) : HasUndirectedEdge (complementGraph g) u v $\leftrightarrow$
+    u < g.vertices $\wedge$ v < g.vertices $\wedge$ u $\neq$ v $\wedge$
+    $\neg$ HasUndirectedEdge g u v}
+    (in \texttt{Karp21.VertexCover}).
+  \item \texttt{CostedReduction.ofCostedMap} (in
+    \texttt{Certificates.ReductionCert}) --- builds a costed reduction
+    from a map, correctness iff, and costed map witness.
+  \item \texttt{CostedMap.of\_emptyOutputEncoding} (in
+    \texttt{Certificates.CostedMap}) --- builds a costed map when
+    \texttt{Y.encode (f x) = []} for all \texttt{x}.
+  \item \texttt{EncodedType.raw} (in \texttt{Core.EncodedType}) ---
+    \texttt{encode := fun \_ => []}, trivial encoding.
+\end{itemize}
+
+\subsection*{Key definitional equalities}
+
+\begin{itemize}
+  \item \texttt{(complementGraph g).vertices = g.vertices} (by definition
+    of \texttt{complementGraph}).
+  \item \texttt{VerticesWithinBounds (complementGraph g) vs =
+    VerticesWithinBounds g vs} (because vertices field is preserved).
+  \item \texttt{PairwiseAdjacent g vs = $\forall$ u $\in$ vs, $\forall$ v
+    $\in$ vs, u $\neq$ v $\to$ HasUndirectedEdge g u v}.
+  \item \texttt{IndependentSet I = $\exists$ vs, vs.length = I.k
+    $\wedge$ vs.Nodup $\wedge$ VerticesWithinBounds I.graph vs
+    $\wedge$ $\forall$ u $\in$ vs, $\forall$ v $\in$ vs, u $\neq$ v
+    $\to$ $\neg$ HasUndirectedEdge I.graph u v}.
+  \item \texttt{Clique I = $\exists$ vs, vs.length = I.k $\wedge$
+    vs.Nodup $\wedge$ VerticesWithinBounds I.graph vs $\wedge$
+    PairwiseAdjacent I.graph vs}.
+\end{itemize}
+
+\subsection*{Declaration order}
+
+The Lean file defines \texttt{cliqueToIndependentSet\_correct} and
+\texttt{cliqueToIndependentSetCostedMap} before
+\texttt{cliqueToIndependentSet}, as required by
+\texttt{CostedReduction.ofCostedMap} (which takes the correctness proof
+and costed-map witness as its second and third arguments).
+
+\begin{definition}[Independent-set input]
+  \label{def:independent_set_input}
+  \lean{ReductionTest.IndependentSet.IndependentSetInput}
+  Karp-style independent-set instance: a graph and a requested
+  independent-set size.
+\end{definition}
+
+\begin{definition}[Independent set predicate]
+  \label{def:independent_set}
+  \lean{ReductionTest.IndependentSet.IndependentSet}
+  \uses{def:independent_set_input}
+  A set of $k$ vertices is an independent set if every distinct pair
+  is non-adjacent:
+  \[
+    \exists\, \textit{vs},\; \textit{vs}.\textit{length} = I.k \;\wedge\;
+    \textit{vs}.\textit{Nodup} \;\wedge\;
+    \textit{VerticesWithinBounds}\;I.\textit{graph}\;\textit{vs}
+    \;\wedge\; \forall u \in \textit{vs},\; \forall v \in \textit{vs},\;
+    u \neq v \to \neg\,\textit{HasUndirectedEdge}\;I.\textit{graph}\;u\;v.
+  \]
+\end{definition}
+
+\begin{definition}[Independent-set encoded type]
+  \label{def:independent_set_encoded_type}
+  \lean{ReductionTest.IndependentSet.independentSetEncodedType}
+  \uses{def:independent_set_input}
+  Raw stable encoding for independent-set instances:
+  \texttt{EncodedType.raw IndependentSetInput}. Since
+  \texttt{EncodedType.raw} has \texttt{encode := fun \_ => []}, the
+  output encoding is trivially empty for every input.
+\end{definition}
+
+\begin{definition}[Independent-set decision problem]
+  \label{def:independent_set_decision_problem}
+  \lean{ReductionTest.IndependentSet.independentSetDecisionProblem}
+  \uses{def:independent_set_encoded_type, def:independent_set}
+  The encoded decision problem with
+  \texttt{Instance := independentSetEncodedType} and
+  \texttt{isYes := IndependentSet}.
+\end{definition}
+
+\begin{definition}[CLIQUE-to-IS reduction map]
+  \label{def:clique_to_independent_set_map}
+  \lean{ReductionTest.IndependentSet.cliqueToIndependentSetMap}
+  \uses{def:independent_set_input}
+  Replace the graph with its complement, keep the budget:
+  \[
+    f(I) = \{\, \textit{graph} := \texttt{complementGraph}\;I.\textit{graph},\;
+    k := I.k \,\}.
+  \]
+  No budget transform. The \texttt{complementGraph} preserves the
+  \texttt{vertices} field, so vertex bounds are unchanged.
+\end{definition}
+
+\begin{theorem}[Correctness of CLIQUE-to-IS reduction]
+  \label{thm:clique_to_independent_set_correct}
+  \lean{ReductionTest.IndependentSet.cliqueToIndependentSet_correct}
+  \uses{def:clique_to_independent_set_map, def:independent_set}
+  For every clique instance $I$, $I$ has a $k$-clique if and only if
+  the complement graph has a $k$-independent set:
+  \[
+    \textit{Clique}\;I \;\leftrightarrow\;
+    \textit{IndependentSet}\;(\texttt{cliqueToIndependentSetMap}\;I).
+  \]
+\end{theorem}
+
+\begin{proof}
+  \uses{def:clique_to_independent_set_map, def:independent_set}
+  Both sides are existentials over a vertex list \textit{vs} with the
+  same length, Nodup, and VerticesWithinBounds components. The only
+  difference is the adjacency condition: Clique requires
+  \texttt{PairwiseAdjacent} (every distinct pair IS adjacent), while
+  IndependentSet on the complement requires every distinct pair is
+  NOT adjacent in the complement graph.
+
+  \textbf{Step 1 (constructor):} Split the iff into forward and backward.
+
+  \textbf{Step 2 (same witness):} In each direction, destructure the
+  existential and reuse the same \textit{vs}. The \texttt{length},
+  \texttt{Nodup}, and \texttt{VerticesWithinBounds} components carry
+  over unchanged because \texttt{complementGraph} preserves
+  \texttt{vertices}:
+  \texttt{(complementGraph I.graph).vertices = I.graph.vertices}.
+
+  \textbf{Step 3 (adjacency conversion):} The key lemma is
+  \texttt{hasUndirectedEdge\_complementGraph\_iff}:
+  \[
+    \textit{HasUndirectedEdge}\;(\texttt{complementGraph}\;g)\;u\;v
+    \;\leftrightarrow\; u < g.\textit{vertices} \;\wedge\;
+    v < g.\textit{vertices} \;\wedge\; u \neq v \;\wedge\;
+    \neg\,\textit{HasUndirectedEdge}\;g\;u\;v.
+  \]
+  Given \texttt{VerticesWithinBounds} ($u, v < \textit{vertices}$) and
+  $u \neq v$, the first three conjuncts are true, so:
+  \[
+    \neg\,\textit{HasUndirectedEdge}\;(\texttt{complementGraph}\;g)\;u\;v
+    \;\leftrightarrow\; \textit{HasUndirectedEdge}\;g\;u\;v.
+  \]
+  This converts the IndependentSet non-adjacency condition on the
+  complement into the Clique adjacency condition on the original graph,
+  and vice versa.
+
+  \textbf{Step 4 (close):} After the conversion, the remaining goal
+  matches the other direction's adjacency hypothesis exactly. Apply
+  \texttt{hasUndirectedEdge\_complementGraph\_iff}, use
+  \texttt{VerticesWithinBounds} for the bounds, then \texttt{tauto} or
+  \texttt{simp} to close.
+\end{proof}
+
+\begin{definition}[CLIQUE-to-IS costed-map witness]
+  \label{def:clique_to_independent_set_costed_map}
+  \lean{ReductionTest.IndependentSet.cliqueToIndependentSetCostedMap}
+  \uses{def:clique_to_independent_set_map, def:independent_set_encoded_type}
+  The costed-map witness for the CLIQUE-to-IS reduction. Since
+  \texttt{independentSetEncodedType = EncodedType.raw IndependentSetInput}
+  has \texttt{encode := fun \_ => []}, the output encoding is empty for
+  every input, so \texttt{CostedMap.of\_emptyOutputEncoding} applies with
+  a trivial \texttt{rfl} proof. This yields cost 0 and a constant
+  (zero) size bound. The witness is extracted as a named definition
+  rather than an inline term because \texttt{CostedReduction.ofCostedMap}
+  leaves its implicit \texttt{EncodedDecisionProblem} arguments as
+  metavariables when the third argument is elaborated inline; the named
+  def pins those types (same pattern as \texttt{PPCosted.lean}).
+\end{definition}
+
+\begin{theorem}[CLIQUE reduces to INDEPENDENT SET]
+  \label{thm:clique_to_independent_set}
+  \lean{ReductionTest.IndependentSet.cliqueToIndependentSet}
+  \uses{thm:clique_to_independent_set_correct, def:clique_to_independent_set_map, def:clique_to_independent_set_costed_map, def:independent_set_decision_problem}
+  There exists a costed reduction from \texttt{cliqueDecisionProblem}
+  to \texttt{independentSetDecisionProblem}, constructed via
+  \texttt{CostedReduction.ofCostedMap} with three arguments.
+\end{theorem}
+
+\begin{proof}
+  \uses{thm:clique_to_independent_set_correct, def:clique_to_independent_set_map, def:clique_to_independent_set_costed_map, def:independent_set_decision_problem}
+  Build via \texttt{CostedReduction.ofCostedMap} with three arguments:
+
+  \textbf{Argument 1 (map):} \texttt{cliqueToIndependentSetMap} --- the
+  complement-graph map.
+
+  \textbf{Argument 2 (correctness):}
+  \texttt{cliqueToIndependentSet\_correct} --- the iff proved above.
+  Pass as \texttt{fun I => cliqueToIndependentSet\_correct I} (or just
+  \texttt{cliqueToIndependentSet\_correct} directly, since the statement
+  is already $\forall I, \textit{Clique}\;I \leftrightarrow \ldots$).
+
+  \textbf{Argument 3 (costed map):}
+  \texttt{cliqueToIndependentSetCostedMap}
+  (Definition~\ref{def:clique_to_independent_set_costed_map}), which wraps
+  \texttt{CostedMap.of\_emptyOutputEncoding} --- since
+  \texttt{independentSetEncodedType = EncodedType.raw IndependentSetInput}
+  and \texttt{EncodedType.raw} has \texttt{encode := fun \_ => []},
+  the hypothesis \texttt{$\forall$ x, independentSetEncodedType.encode
+  (cliqueToIndependentSetMap x) = []} is trivially \texttt{rfl} (or
+  \texttt{simp [independentSetEncodedType, EncodedType.raw]}).
+  This gives cost 0 and constant size bound.
+
+  \textbf{IMPORTANT:} \texttt{cliqueToIndependentSet\_correct} must be
+  declared BEFORE \texttt{cliqueToIndependentSet} in the Lean file,
+  because \texttt{ofCostedMap} takes the correctness proof as an
+  argument.
+\end{proof}

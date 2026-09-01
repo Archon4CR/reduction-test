@@ -1,0 +1,3 @@
+import ReductionTest.DoubleSAT
+import ReductionTest.NAE3SAT
+import ReductionTest.IndependentSet

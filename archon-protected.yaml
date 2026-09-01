@@ -1,0 +1,5 @@
+# archon-protected.yaml
+# No declarations are protected yet. The mathematician may add entries
+# here to freeze signatures once the project is initialized.
+#
+# See archon-test/archon-protected.yaml for format examples.
