@@ -1,23 +1,23 @@
-# ComplexityReduction 项目参考
+# ComplexityReduction Project Reference
 
-本文档记录 `archon-test` 对 ComplexityReduction 库的接入情况，与 Archon 打包数据中的
-`complexity-reduction-library.md` 保持一致，并补充本项目当前需要的具体目标和导入策略。
+This document records how `archon-test` integrates the ComplexityReduction library. It stays consistent with
+`complexity-reduction-library.md` in the Archon packaging data and adds the concrete goals and import strategy currently needed by this project.
 
-## 本地依赖
+## Local Dependency
 
-- Lake 声明：`require ComplexityReduction from "../ComplexityReduction"`（见 `lakefile.lean`）。
-- 源码路径：`../ComplexityReduction`，内层库目录为 `../ComplexityReduction/ComplexityReduction`。
-- 工具链：`leanprover/lean4:v4.29.0`，mathlib `v4.29.0`。
+- Lake declaration: `require ComplexityReduction from "../ComplexityReduction"` (see `lakefile.lean`).
+- Source path: `../ComplexityReduction`; the inner library directory is `../ComplexityReduction/ComplexityReduction`.
+- Toolchain: `leanprover/lean4:v4.29.0`, mathlib `v4.29.0`.
 
-## 导入策略
+## Import Strategy
 
-默认入口用聚合目标模块：
+Use the aggregate target module as the default entry:
 
 ```lean
 import ComplexityReduction.Targets
 ```
 
-需要更宽的符号面时按需补充：
+Supplement as needed when a wider symbol surface is required:
 
 ```lean
 import ComplexityReduction.Core
@@ -30,54 +30,54 @@ import ComplexityReduction.Certificates
 import ComplexityReduction.Templates
 ```
 
-`Templates` 不在根导入内，使用归约模板时必须单独导入。
+`Templates` is not included in the root import; it must be imported separately when reduction templates are used.
 
-## 冒烟验证（已完成）
+## Smoke Verification (Completed)
 
-`ArchonTest/ComplexityReductionSmoke.lean` 已通过 `#check`：
+`ArchonTest/ComplexityReductionSmoke.lean` has passed `#check`:
 
 - `ComplexityReduction.Targets.NPCTargetDescriptor : Type`
 - `ComplexityReduction.Targets.threeSATDecisionProblem : ComplexityReduction.EncodedDecisionProblem`
 - `ComplexityReduction.Targets.threeSATTarget : ComplexityReduction.Targets.NPCTargetDescriptor`
 - `ComplexityReduction.Targets.localTargets : List ComplexityReduction.Targets.NPCTargetDescriptor`
 
-构建命令：
+Build command:
 
 ```powershell
 & 'C:\Users\14354\.elan\toolchains\leanprover--lean4---v4.29.0\bin\lake.exe' build ArchonTest.ComplexityReductionSmoke
 ```
 
-## 当前目标
+## Current Goals
 
-本项目暂未定义 ComplexityReduction 相关的证明目标。后续如需证明某问题 NP 完全，应：
+This project does not yet define any ComplexityReduction-related proof goals. If a problem needs to be proved NP-complete later, you should:
 
-1. 从 `Targets.localTargets` 选择目标描述符。
-2. 优先复用 `CostedReduction.comp`、`Templates.*`、`NPCompleteEnc.transfer`、`composeTMKarp`。
-3. 每个新声明必须编译通过且 axiom-clean，`#print axioms` 只允许 `propext`、`Classical.choice`、`Quot.sound`。
+1. Pick a target descriptor from `Targets.localTargets`.
+2. Prefer reusing `CostedReduction.comp`, `Templates.*`, `NPCompleteEnc.transfer`, and `composeTMKarp`.
+3. Every new declaration must compile and be axiom-clean; `#print axioms` is only allowed to show `propext`, `Classical.choice`, `Quot.sound`.
 
-## 信任边界
+## Trust Boundary
 
-默认可用的 Targets 子模块：`ThreeSAT`、`ThreeSATCompleteBoundary`、`NPCTargetCatalog`、
-`Karp21Catalog`、`CountingCSP`、`FiniteDomainCSP`、`HColoringCatalog`、
-`HColoringComplexityCatalog`、`NPCTransfer`。
+Targets submodules available by default: `ThreeSAT`, `ThreeSATCompleteBoundary`, `NPCTargetCatalog`,
+`Karp21Catalog`, `CountingCSP`, `FiniteDomainCSP`, `HColoringCatalog`,
+`HColoringComplexityCatalog`, `NPCTransfer`.
 
-需要 explicit opt-in 的外部 Schaefer bridge 模块：`Targets.Schaefer`、
-`Targets.SchaeferFiniteDomain`。这些只记录边界元数据，不把外部定理搬运进本项目的
-`EncodedDecisionProblem` 基础。注意 import 级差异：`Targets.Schaefer` 被
-`NPCTargetCatalog` 间接导入（仅取字符串常量），其类型在作用域内但不含外部定理；
-`Targets.SchaeferFiniteDomain` 不被任何默认模块导入。实质信任边界是数据级的：
-`localTargets`/`initialTargets` 排除外部描述符，只有 `targetsWithExternalBridges` 才包含。
+The external Schaefer bridge modules that require explicit opt-in: `Targets.Schaefer`,
+`Targets.SchaeferFiniteDomain`. These only record boundary metadata and do not carry external theorems into this project's
+`EncodedDecisionProblem` foundation. Note the import-level difference: `Targets.Schaefer` is
+imported indirectly by `NPCTargetCatalog` (only string constants are taken), so its types are in scope but it contains no external theorems;
+`Targets.SchaeferFiniteDomain` is not imported by any default module. The substantive trust boundary is at the data level:
+`localTargets`/`initialTargets` exclude external descriptors, and only `targetsWithExternalBridges` includes them.
 
-## 搜索库
+## Searching the Library
 
-Archon 打包了 `search_complexity_reduction.sh`，默认指向 `../ComplexityReduction/ComplexityReduction`。
-也可直接用 `rg`：
+Archon packages `search_complexity_reduction.sh`, which points to `../ComplexityReduction/ComplexityReduction` by default.
+You can also use `rg` directly:
 
 ```bash
 rg -n "NPCompleteEnc" ../ComplexityReduction/ComplexityReduction/
 rg -l "Schaefer" ../ComplexityReduction/ComplexityReduction/
 ```
 
-## 详细符号表
+## Detailed Symbol Table
 
-完整符号表见 Archon 打包参考 `complexity-reduction-library.md`，此处不重复。本文件只记录项目级接入状态和本地验证结果。
+For the complete symbol table, see the Archon packaged reference `complexity-reduction-library.md`; it is not repeated here. This file only records the project-level integration status and local verification results.

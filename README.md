@@ -1,27 +1,40 @@
-# ReductionTest — 归约证明测试项目
+# ReductionTest — Reduction Proof Testing Project
 
-本项目使用 Archon 自动定理证明框架和 ComplexityReduction 库，完成了 3 道 NP 完全性归约问题的 Lean 4 形式化证明。全部证明 0 sorry、axiom-clean（仅依赖 propext、Classical.choice、Quot.sound），lake build 绿色。
+This project uses the Archon automated theorem proving framework and the ComplexityReduction library to complete Lean 4 formalized proofs of 3 NP-completeness reduction problems. All proofs have 0 sorry and are axiom-clean (depending only on propext, Classical.choice, Quot.sound); lake build is green.
 
-## 证明概览
+## Proof Overview
 
-| 文件 | 归约 | CR 复用策略 |
+| File | Reduction | CR Reuse Strategy |
 |------|------|-------------|
-| ReductionTest/NAE3SAT.lean | 3SAT -> NAE-3SAT | REUSE — 直接 re-export CR 库已有归约 |
-| ReductionTest/DoubleSAT.lean | SAT -> DOUBLE-SAT | BUILD_NEW — 从零构建编码和归约 |
-| ReductionTest/IndependentSet.lean | CLIQUE -> Independent Set | PARTIAL — 复用 CR 补图基础设施 |
+| ReductionTest/NAE3SAT.lean | 3SAT -> NAE-3SAT | REUSE — directly re-export existing reductions from the CR library |
+| ReductionTest/DoubleSAT.lean | SAT -> DOUBLE-SAT | BUILD_NEW — build the encoding and reduction from scratch |
+| ReductionTest/IndependentSet.lean | CLIQUE -> Independent Set | PARTIAL — reuse the CR complement-graph infrastructure |
 
-## CR Advisor 报告
+## CR Advisor Reports
 
-advisor-reports/ 目录包含 ComplexityReduction advisor 子代理在证明前生成的 3 份分析报告，分别判定每道题的复用策略（REUSE / BUILD_NEW / PARTIAL）并给出 CR 库 API 定位。最终证明策略与报告建议完全一致。
+The advisor-reports/ directory contains the 3 analysis reports generated before proving by the ComplexityReduction advisor subagent, each determining the reuse strategy for its problem (REUSE / BUILD_NEW / PARTIAL) and locating the relevant CR library APIs. The final proof strategies match the report recommendations exactly.
 
-## 构建
+## Build
 
 ```powershell
 lake build ReductionTest
 ```
 
-依赖 ComplexityReduction（本地路径 ../ComplexityReduction）和 mathlib（v4.29.0），lean-toolchain 为 leanprover/lean4:v4.29.0。
+Depends on ComplexityReduction (local path ../ComplexityReduction) and mathlib (v4.29.0); the lean-toolchain is leanprover/lean4:v4.29.0.
 
 ## Blueprint
 
-blueprint/src/ 包含半形式化 LaTeX 文档，描述每道归约题的数学证明思路。
+blueprint/src/ contains semi-formal LaTeX documents describing the mathematical proof idea of each reduction problem.
+
+## Credits
+
+- The ComplexityReduction library was developed by a senior member of our lab; this project consumes it as a local Lake dependency (`../ComplexityReduction`).
+- Archon is used in its fork form: targeted modifications were made to the upstream frenzymath/Archon for the ComplexityReduction integration.
+- Problem selection, blueprints, proof runs, and this repository were produced by the project author.
+
+## Known Limitation
+
+The theorems in `ReductionTest/` formalize the existence and correctness of each reduction (the
+yes-instance iff), but **not** the polynomial-time computability of the reduction maps, so the
+natural-language NP-completeness claims remain stronger than the formal statements. See Section 10
+of `REDUCTION_TEST_REPORT` in the docs repository for the full discussion.
